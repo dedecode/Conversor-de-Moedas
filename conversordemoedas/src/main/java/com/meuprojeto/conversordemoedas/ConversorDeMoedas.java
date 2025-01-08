@@ -19,8 +19,6 @@ public class ConversorDeMoedas {
 
     public static void main(String[] args) throws IOException {
 
-        System.out.println("       Bem vindo ao Conversor de Moedas! \nEssas são as moedas disponíveis para conversão:");
-
         Map<String, String> nomesSingulares = new HashMap<>();
         nomesSingulares.put("AUD", "Dólar Australiano");
         nomesSingulares.put("BGN", "Lev Búlgaro");
@@ -54,10 +52,6 @@ public class ConversorDeMoedas {
         nomesSingulares.put("USD", "Dólar Americano");
         nomesSingulares.put("ZAR", "Rand Sul-Africano");
 
-        for(String n : nomesSingulares.keySet()){
-            System.out.println(" " + nomesSingulares.get(n) + " - " + n);
-        }
-
         Map<String, String> nomesPlurais = new HashMap<>();
         nomesPlurais.put("AUD", "Dólares Australianos");
         nomesPlurais.put("BGN", "Levs Búlgaros");
@@ -90,72 +84,104 @@ public class ConversorDeMoedas {
         nomesPlurais.put("TRY", "Liras Turcas");
         nomesPlurais.put("USD", "Dólares Americanos");
         nomesPlurais.put("ZAR", "Rands Sul-Africanos");
-        System.out.println();
 
         Set<String> moedasValidas = nomesSingulares.keySet();
-
         Scanner scanner = new Scanner(System.in);
 
-        System.out.println("Converter de (ex.: USD):");
-        String moedaOrigem = scanner.nextLine().toUpperCase();
+            System.out.println("\n       Bem vindo ao Conversor de Moedas!\nEssas são as moedas disponíveis para conversão:");
 
-        if (!moedasValidas.contains(moedaOrigem)) {
-            System.out.println("Moeda de origem inválida! Tente novamente.");
-            return;
+            for (String n : nomesSingulares.keySet()) {
+                System.out.println(" " + nomesSingulares.get(n) + " - " + n);
+            }
+
+            boolean continuar = true;
+            while (continuar) {
+            
+                String moedaOrigem;
+            while (true) {
+                System.out.println("\nConverter de (ex.: USD):");
+                moedaOrigem = scanner.nextLine().toUpperCase();
+                if (moedasValidas.contains(moedaOrigem)) {
+                    break;
+                }
+                System.out.println("Moeda de origem inválida! Tente novamente.");
+            }
+
+            String moedaDestino;
+            while (true) {
+                System.out.println("Converter para (ex.: BRL):");
+                moedaDestino = scanner.nextLine().toUpperCase();
+                if (moedasValidas.contains(moedaDestino)) {
+                    break;
+                }
+                System.out.println("Moeda de destino inválida! Tente novamente.");
+            }
+
+            BigDecimal quantidade;
+            while (true) {
+                try {
+                    System.out.println("Digite a quantidade a converter:");
+                    quantidade = scanner.nextBigDecimal();
+                    scanner.nextLine(); 
+                    break;
+                } catch (Exception e) {
+                    System.out.println("Quantidade inválida! Por favor, insira um número válido.");
+                    scanner.nextLine(); 
+                }
+            }
+
+            String urlString = "https://api.frankfurter.dev/v1/latest?base=" + moedaOrigem;
+            OkHttpClient cliente = new OkHttpClient();
+            Request requisicao = new Request.Builder().url(urlString).get().build();
+            Response resposta = cliente.newCall(requisicao).execute();
+
+            if (!resposta.isSuccessful()) {
+                System.out.println("Erro ao acessar a API! Verifique sua conexão.");
+                continue;
+            }
+
+            String respostaString = resposta.body().string();
+            JSONObject objetoJson = new JSONObject(respostaString);
+            JSONObject objetoTaxas = objetoJson.getJSONObject("rates");
+
+            if (!objetoTaxas.has(moedaDestino)) {
+                System.out.println("Moeda de destino não encontrada! Tente novamente.");
+                continue;
+            }
+
+            BigDecimal taxa = objetoTaxas.getBigDecimal(moedaDestino);
+            BigDecimal resultado = taxa.multiply(quantidade);
+
+            String nomeMoedaDestino;
+            if (resultado.compareTo(BigDecimal.ONE) == 0) {
+                nomeMoedaDestino = nomesSingulares.get(moedaDestino);
+            } else {
+                nomeMoedaDestino = nomesPlurais.get(moedaDestino);
+            }
+
+            Currency moeda = Currency.getInstance(moedaDestino);
+            Locale locale = new Locale("en", "US");
+            NumberFormat formatador = NumberFormat.getCurrencyInstance(locale);
+            formatador.setCurrency(moeda);
+            
+            System.out.println();
+            System.out.println("Resultado da conversão: " + formatador.format(resultado) + " " + nomeMoedaDestino + "\n");
+            
+            String respostaUsuario;
+            while (true) {
+                System.out.println("\nDeseja realizar outra conversão? (sim/nao):");
+                respostaUsuario = scanner.nextLine().trim().toLowerCase();
+                if (respostaUsuario.equals("sim")) {
+                    continuar = true;
+                    break;
+                } else if (respostaUsuario.equals("nao")) {
+                    continuar = false;
+                    System.out.println("Obrigado por usar o Conversor de Moedas! Até a próxima.");
+                    break;
+                } else {
+                    System.out.println("Resposta inválida! Digite sim ou nao.");
+                }
+            }
         }
-
-        System.out.println("Converter para (ex.: BRL):");
-        String moedaDestino = scanner.nextLine().toUpperCase();
-
-        if (!moedasValidas.contains(moedaDestino)) {
-            System.out.println("Moeda de destino inválida! Tente novamente.");
-            return;
-        }
-
-        BigDecimal quantidade;
-        try {
-            System.out.println("Digite a quantidade a converter:");
-            quantidade = scanner.nextBigDecimal();
-        } catch (Exception e) {
-            System.out.println("Quantidade inválida! Por favor, insira um número válido.");
-            return;
-        }
-
-        String urlString = "https://api.frankfurter.dev/v1/latest?base=" + moedaOrigem;
-        OkHttpClient cliente = new OkHttpClient();
-        Request requisicao = new Request.Builder().url(urlString).get().build();
-        Response resposta = cliente.newCall(requisicao).execute();
-
-        if (!resposta.isSuccessful()) {
-            System.out.println("Erro ao acessar a API! Verifique sua conexão.");
-            return;
-        }
-
-        String respostaString = resposta.body().string();
-        JSONObject objetoJson = new JSONObject(respostaString);
-        JSONObject objetoTaxas = objetoJson.getJSONObject("rates");
-
-        if (!objetoTaxas.has(moedaDestino)) {
-            System.out.println("Moeda de destino não encontrada! Tente novamente.");
-            return;
-        }
-
-        BigDecimal taxa = objetoTaxas.getBigDecimal(moedaDestino);
-        BigDecimal resultado = taxa.multiply(quantidade);
-
-        
-        String nomeMoedaDestino;
-        if (resultado.compareTo(BigDecimal.ONE) == 0) {
-            nomeMoedaDestino = nomesSingulares.get(moedaDestino);
-        } else {
-            nomeMoedaDestino = nomesPlurais.get(moedaDestino);
-        }
-
-        Currency moeda = Currency.getInstance(moedaDestino);
-        Locale locale = new Locale("en", "US");
-        NumberFormat formatador = NumberFormat.getCurrencyInstance(locale);
-        formatador.setCurrency(moeda);
-
-        System.out.println("Resultado da conversão: " + formatador.format(resultado) + " " + nomeMoedaDestino);
     }
 }
